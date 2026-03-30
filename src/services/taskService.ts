@@ -19,6 +19,20 @@ export const taskService = {
    * Cria uma nova tarefa
    */
   async createTask(taskData: Omit<Tarefa, 'id' | 'criado_em' | 'atualizado_em'>) {
+    if (!taskData.coluna_id) {
+      const { data: defaultCol } = await supabase
+        .from('colunas')
+        .select('id')
+        .eq('lista_id', taskData.lista_id)
+        .order('ordem', { ascending: true })
+        .limit(1)
+        .maybeSingle();
+
+      if (defaultCol) {
+        taskData.coluna_id = defaultCol.id;
+      }
+    }
+
     const { data, error } = await supabase
       .from('tarefas')
       .insert([taskData])

@@ -10,3 +10,17 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+
+.scroll-container::-webkit-scrollbar {
+  height: 4px;
+}
+.scroll-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scroll-container::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 999px;
+}
+.scroll-container::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
