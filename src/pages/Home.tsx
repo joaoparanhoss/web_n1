@@ -1,5 +1,16 @@
 import { useState } from 'react';
-import { Edit2, Trash2, Plus, X } from 'lucide-react';
+import { Edit2, Trash2, Plus, X, GripVertical } from 'lucide-react';
+import {
+  DndContext,
+  DragEndEvent,
+  useSensor,
+  useSensors,
+  PointerSensor,
+  TouchSensor,
+  useDroppable,
+  useDraggable
+} from '@dnd-kit/core';
+import { CSS } from '@dnd-kit/utilities';
 import { Header } from '../components/Header';
 import { useParams } from 'react-router-dom';
 import { useAuthContext } from '../contexts/AuthContext';
@@ -7,6 +18,34 @@ import { useLista } from '../hooks/useLista';
 import { useTasks } from '../hooks/useTasks';
 import { useColumns } from '../hooks/useColumns';
 import { Tarefa, StatusTarefa, Coluna } from '../types/database';
+
+function DroppableColumn({ id, children, className }: { id: string; children: React.ReactNode; className: string }) {
+  const { isOver, setNodeRef } = useDroppable({ id });
+  const style = isOver ? { outline: '2px dashed #475569', outlineOffset: '-2px', backgroundColor: 'rgba(30, 41, 59, 0.5)' } : undefined;
+  return (
+    <div ref={setNodeRef} style={style} className={className}>
+      {children}
+    </div>
+  );
+}
+
+function DraggableTask({ id, children, className, onClick }: { id: string; children: React.ReactNode; className?: string; onClick?: () => void }) {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id });
+  const style = {
+    transform: CSS.Translate.toString(transform),
+    opacity: isDragging ? 0.5 : 1,
+    cursor: 'auto',
+    zIndex: isDragging ? 50 : 1,
+  };
+  return (
+    <div ref={setNodeRef} style={style} className={className} onClick={onClick}>
+      <div className="absolute top-3 right-3 text-slate-500 cursor-grab active:cursor-grabbing hover:text-slate-300 z-10" {...listeners} {...attributes} title="Arrastar">
+        <GripVertical size={16} />
+      </div>
+      {children}
+    </div>
+  );
+}
 
 export function Home() {
   const { id } = useParams<{ id: string }>();
@@ -17,6 +56,7 @@ export function Home() {
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editando, setEditando] = useState<Tarefa | null>(null);
+  const [visualizando, setVisualizando] = useState<Tarefa | null>(null);
   
   const [tituloForm, setTituloForm] = useState('');
   const [descricaoForm, setDescricaoForm] = useState('');
@@ -30,6 +70,29 @@ export function Home() {
   const [ordemColunaForm, setOrdemColunaForm] = useState(0);
   const [loadingColunaSubmit, setLoadingColunaSubmit] = useState(false);
 
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 100, tolerance: 5 } })
+  );
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over) return;
+
+    const taskId = active.id as string;
+    const targetColumnId = over.id as string;
+    const task = tarefas.find(t => t.id === taskId);
+
+    if (task && task.coluna_id !== targetColumnId) {
+      try {
+        await updateTask(taskId, { coluna_id: targetColumnId });
+      } catch (err) {
+        console.error(err);
+        alert('Erro ao mover tarefa');
+      }
+    }
+  };
+
   const abrirModalCriar = () => {
     setEditando(null);
     setTituloForm('');
@@ -40,6 +103,7 @@ export function Home() {
 
   const abrirModalEditar = (e: React.MouseEvent, tarefa: Tarefa) => {
     e.stopPropagation();
+    setVisualizando(null);
     setEditando(tarefa);
     setTituloForm(tarefa.titulo);
     setDescricaoForm(tarefa.descricao || '');
@@ -71,7 +135,8 @@ export function Home() {
           titulo: tituloForm, 
           descricao: descricaoForm,
           status: statusForm,
-          lista_id: lista.id
+          lista_id: lista.id,
+          usuario_id: user.id
         });
       }
       setModalOpen(false);
@@ -129,6 +194,15 @@ export function Home() {
         console.error(err);
         alert('Erro ao excluir coluna');
       }
+    }
+  };
+
+  const formatStatusColor = (status: StatusTarefa) => {
+    switch(status) {
+      case 'pendente': return 'bg-yellow-500';
+      case 'em andamento': return 'bg-blue-500';
+      case 'concluido': return 'bg-green-500';
+      default: return 'bg-slate-500';
     }
   };
 
@@ -216,92 +290,130 @@ export function Home() {
                 </button>
               </div>
             ) : (
-              <div className="flex gap-4 overflow-x-auto pb-6 mb-6 min-h-[500px] items-start scroll-container">
-                {colunas.map((coluna) => (
-                  <div key={coluna.id} className="flex-1 min-w-[280px] bg-slate-800/50 border border-slate-800 rounded-xl p-4 flex flex-col group/col shrink-0">
-                    <div className="flex justify-between items-center mb-4">
-                      <h4 className="font-semibold text-slate-100">{coluna.titulo}</h4>
-                      <div className="flex items-center gap-1 opacity-0 group-hover/col:opacity-100 transition-all">
-                        <button
-                          onClick={() => abrirModalColunaEditar(coluna)}
-                          className="p-1.5 text-slate-500 hover:text-white hover:bg-slate-700 rounded-md"
-                          title="Editar coluna"
-                        >
-                          <Edit2 size={16} />
-                        </button>
-                        <button
-                          onClick={(e) => handleDeletarColuna(e, coluna.id)}
-                          className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-slate-700 rounded-md"
-                          title="Excluir coluna"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-                    </div>
-                    
-                    <div className="flex flex-col gap-3">
-                      {tarefas.filter(t => t.coluna_id === coluna.id).map((tarefa) => (
-                        <div
-                          key={tarefa.id}
-                          className="group/task bg-slate-900 border border-slate-800 rounded-xl p-4 hover:border-slate-700 transition-all hover:shadow-lg flex flex-col"
-                        >
-                          <div className="flex flex-col gap-2 mb-3">
-                            <div className="flex justify-between items-start gap-3">
-                              <h4 className="text-base font-semibold text-white break-words flex-1" title={tarefa.titulo}>
-                                {tarefa.titulo}
-                              </h4>
-                              <span className={`text-[10px] px-2 py-0.5 uppercase font-bold rounded-full border whitespace-nowrap ${formatStatus(tarefa.status)}`}>
-                                {tarefa.status}
-                              </span>
-                            </div>
-                            {tarefa.descricao && (
-                              <p className="text-xs text-slate-400 line-clamp-2" title={tarefa.descricao}>
-                                {tarefa.descricao}
-                              </p>
-                            )}
-                          </div>
-                          
-                          <div className="mt-auto pt-3 border-t border-slate-800 flex justify-between items-center gap-2">
-                            <select
-                              value={tarefa.coluna_id || ''}
-                              onChange={(e) => updateTask(tarefa.id, { coluna_id: e.target.value })}
-                              className="bg-slate-950 border border-slate-700 rounded p-1 text-xs text-slate-300 focus:outline-none focus:border-blue-500 w-full max-w-[130px] cursor-pointer"
-                              title="Mover de coluna"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <option value="" disabled>Coluna...</option>
-                              {colunas.map(c => (
-                                <option key={c.id} value={c.id}>{c.titulo}</option>
-                              ))}
-                            </select>
-                            
-                            <div className="flex gap-1">
-                              <button
-                                onClick={(e) => abrirModalEditar(e, tarefa)}
-                                className="p-1.5 text-slate-500 hover:text-blue-400 hover:bg-slate-800 rounded-md transition-colors opacity-0 group-hover/task:opacity-100"
-                                title="Editar tarefa"
-                              >
-                                <Edit2 size={14} />
-                              </button>
-                              <button
-                                onClick={(e) => handleDelete(e, tarefa.id)}
-                                className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-slate-800 rounded-md transition-colors opacity-0 group-hover/task:opacity-100"
-                                title="Excluir tarefa"
-                              >
-                                <Trash2 size={14} />
-                              </button>
-                            </div>
-                          </div>
+              <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+                <div className="flex gap-4 overflow-x-auto pb-6 mb-6 min-h-[500px] items-start scroll-container">
+                  {colunas.map((coluna) => (
+                    <DroppableColumn key={coluna.id} id={coluna.id} className="flex-1 min-w-[280px] bg-slate-800/50 border border-slate-800 rounded-xl p-4 flex flex-col group/col shrink-0 transition-colors">
+                      <div className="flex justify-between items-center mb-4">
+                        <h4 className="font-semibold text-slate-100">{coluna.titulo}</h4>
+                        <div className="flex items-center gap-1 opacity-0 group-hover/col:opacity-100 transition-all">
+                          <button
+                            onClick={() => abrirModalColunaEditar(coluna)}
+                            className="p-1.5 text-slate-500 hover:text-white hover:bg-slate-700 rounded-md"
+                            title="Editar coluna"
+                          >
+                            <Edit2 size={16} />
+                          </button>
+                          <button
+                            onClick={(e) => handleDeletarColuna(e, coluna.id)}
+                            className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-slate-700 rounded-md"
+                            title="Excluir coluna"
+                          >
+                            <Trash2 size={16} />
+                          </button>
                         </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
+                      </div>
+                      
+                      <div className="flex flex-col gap-3 min-h-[20px]">
+                        {tarefas.filter(t => t.coluna_id === coluna.id).map((tarefa) => (
+                          <DraggableTask
+                            key={tarefa.id}
+                            id={tarefa.id}
+                            className="group/task bg-slate-900 border border-slate-800 rounded-xl hover:border-slate-700 transition-colors hover:shadow-lg flex flex-col relative overflow-hidden cursor-pointer"
+                            onClick={() => setVisualizando(tarefa)}
+                          >
+                            <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${formatStatusColor(tarefa.status)}`} />
+                            
+                            <div className="p-4 pl-5">
+                              <div className="flex flex-col gap-1 mb-2 pr-4">
+                                <h4 className="text-base font-semibold text-white break-words" title={tarefa.titulo}>
+                                  {tarefa.titulo}
+                                </h4>
+                                {tarefa.descricao && (
+                                  <p className="text-xs text-slate-500 truncate" title={tarefa.descricao}>
+                                    {tarefa.descricao}
+                                  </p>
+                                )}
+                              </div>
+                              
+                              <div className="mt-auto flex justify-end items-center gap-2">
+                                <div className="flex gap-1 relative z-10">
+                                  <button
+                                    onPointerDown={(e) => e.stopPropagation()}
+                                    onClick={(e) => abrirModalEditar(e, tarefa)}
+                                    className="p-1.5 text-slate-500 hover:text-blue-400 hover:bg-slate-800 rounded-md transition-colors"
+                                    title="Editar tarefa"
+                                  >
+                                    <Edit2 size={14} />
+                                  </button>
+                                  <button
+                                    onPointerDown={(e) => e.stopPropagation()}
+                                    onClick={(e) => handleDelete(e, tarefa.id)}
+                                    className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-slate-800 rounded-md transition-colors"
+                                    title="Excluir tarefa"
+                                  >
+                                    <Trash2 size={14} />
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          </DraggableTask>
+                        ))}
+                      </div>
+                    </DroppableColumn>
+                  ))}
+                </div>
+              </DndContext>
             )}
           </>
         )}
       </main>
+
+      {/* Modal de Visualizar Tarefa */}
+      {visualizando && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50" onClick={() => setVisualizando(null)}>
+          <div className="bg-slate-900 border border-slate-700 rounded-xl max-w-md w-full overflow-hidden shadow-2xl relative" onClick={e => e.stopPropagation()}>
+            <div className={`absolute top-0 left-0 right-0 h-2 ${formatStatusColor(visualizando.status)}`} />
+            <div className="flex justify-between items-start p-5 border-b border-slate-800 mt-2">
+              <h3 className="text-xl font-bold text-white break-words pr-8">
+                {visualizando.titulo}
+              </h3>
+              <button
+                onClick={() => setVisualizando(null)}
+                className="text-slate-400 hover:text-white transition-colors shrink-0"
+              >
+                <X size={24} />
+              </button>
+            </div>
+            
+            <div className="p-5 space-y-4">
+              <div>
+                <h4 className="text-sm font-medium text-slate-400 mb-1">Status</h4>
+                <div className={`inline-block text-xs px-2.5 py-1 uppercase font-bold rounded-full border ${formatStatus(visualizando.status)}`}>
+                  {visualizando.status}
+                </div>
+              </div>
+              
+              <div>
+                <h4 className="text-sm font-medium text-slate-400 mb-1">Descrição</h4>
+                <div className="bg-slate-800/50 border border-slate-700/50 rounded-lg p-3 min-h-[100px] text-slate-300 text-sm whitespace-pre-wrap">
+                  {visualizando.descricao || <span className="text-slate-500 italic">Nenhuma descrição.</span>}
+                </div>
+              </div>
+              
+              <div className="pt-4 flex gap-3 justify-end border-t border-slate-800">
+                <button
+                  onClick={(e) => abrirModalEditar(e, visualizando)}
+                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
+                >
+                  <Edit2 size={16} />
+                  Editar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal de Tarefa */}
       {modalOpen && (

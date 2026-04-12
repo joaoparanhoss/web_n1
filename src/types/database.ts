@@ -31,6 +31,7 @@ export interface Tarefa {
   status: StatusTarefa;
   lista_id: string;
   coluna_id?: string;
+  usuario_id?: string;
   criado_em?: string;
   atualizado_em?: string;
 }

@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { Routes, Route, useNavigate } from 'react-router-dom';
 import { AuthProvider, useAuthContext } from './contexts/AuthContext';
 import { PrivateRoute } from './components/PrivateRoute';
 import { useEffect, useState } from 'react';
