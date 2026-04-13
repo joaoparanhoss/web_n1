@@ -396,7 +396,7 @@ export function Home() {
               
               <div>
                 <h4 className="text-sm font-medium text-slate-400 mb-1">Descrição</h4>
-                <div className="bg-slate-800/50 border border-slate-700/50 rounded-lg p-3 min-h-[100px] text-slate-300 text-sm whitespace-pre-wrap">
+                <div className="bg-slate-800/50 border border-slate-700/50 rounded-lg p-3 min-h-[100px] text-slate-300 text-sm whitespace-pre-wrap break-words">
                   {visualizando.descricao || <span className="text-slate-500 italic">Nenhuma descrição.</span>}
                 </div>
               </div>
