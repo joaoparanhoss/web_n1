@@ -9,6 +9,7 @@ import { Login } from './pages/Login';
 import { Register } from './pages/Register';
 import { Home } from './pages/Home';
 import { NoList } from './pages/NoList';
+import { Dashboard } from './pages/Dashboard';
 
 function IndexRedirect() {
   const { user } = useAuthContext();
@@ -55,6 +56,7 @@ function App() {
         <Route path="/" element={<PrivateRoute><IndexRedirect /></PrivateRoute>} />
         <Route path="/sem-lista" element={<PrivateRoute><NoList /></PrivateRoute>} />
         <Route path="/lista/:id" element={<PrivateRoute><Home /></PrivateRoute>} />
+        <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
       </Routes>
     </AuthProvider>
   );

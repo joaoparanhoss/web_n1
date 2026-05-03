@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { LogOut, ChevronDown, Plus, Edit2, Trash2, X } from 'lucide-react';
 import { useAuthContext } from '../contexts/AuthContext';
 import { useLists } from '../hooks/useLists';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, Link } from 'react-router-dom';
 import { Lista } from '../types/database';
 
 export function Header({ hideListSelector = false }: { hideListSelector?: boolean }) {
@@ -118,7 +118,7 @@ export function Header({ hideListSelector = false }: { hideListSelector?: boolea
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6 relative" ref={dropdownRef}>
             <div className="flex items-center gap-3">
-              <h1 className="text-xl font-bold text-white leading-none">Gestão de Tarefas</h1>
+              <Link to="/" className="text-xl font-bold text-white leading-none hover:text-blue-400 transition-colors">Gestão de Tarefas</Link>
               
               {!hideListSelector && (
                 <div className="relative z-40">
@@ -163,6 +163,22 @@ export function Header({ hideListSelector = false }: { hideListSelector?: boolea
                      </div>
                    )}
                 </div>
+              )}
+              
+              {hideListSelector ? (
+                <button
+                  onClick={() => navigate('/')}
+                  className="hidden sm:flex items-center gap-2 ml-2 px-3 py-1.5 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg transition-colors border border-transparent hover:border-slate-700"
+                >
+                  Tarefas
+                </button>
+              ) : (
+                <button
+                  onClick={() => { setDropdownOpen(false); navigate('/dashboard'); }}
+                  className="hidden sm:flex items-center gap-2 ml-2 px-3 py-1.5 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg transition-colors border border-transparent hover:border-slate-700"
+                >
+                  Dashboard
+                </button>
               )}
             </div>
             

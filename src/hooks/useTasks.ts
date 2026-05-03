@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Tarefa, StatusTarefa } from '../types/database';
+import { Tarefa } from '../types/database';
 import { taskService } from '../services/taskService';
 
 export function useTasks(listaId: string | undefined) {
@@ -51,17 +51,6 @@ export function useTasks(listaId: string | undefined) {
     }
   };
 
-  const updateTaskStatus = async (id: string, status: StatusTarefa) => {
-    try {
-      setError(null);
-      await taskService.updateTaskStatus(id, status);
-      await fetchTasks();
-    } catch (err: any) {
-      setError(err.message || 'Erro ao atualizar status da tarefa');
-      throw err;
-    }
-  };
-
   const deleteTask = async (id: string) => {
     try {
       setError(null);
@@ -79,7 +68,6 @@ export function useTasks(listaId: string | undefined) {
     error,
     createTask,
     updateTask,
-    updateTaskStatus,
     deleteTask,
     refreshTasks: fetchTasks
   };

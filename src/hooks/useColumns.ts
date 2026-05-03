@@ -31,12 +31,12 @@ export function useColumns(listaId?: string) {
     carregarColunas();
   }, [carregarColunas]);
 
-  const createColumn = async (titulo: string) => {
+  const createColumn = async (titulo: string, tipo: Coluna['tipo'] = 'padrao') => {
     if (!listaId) return null;
     try {
       setError(null);
       const ordem = await columnService.getNextOrdem(listaId);
-      const newColumn = await columnService.createColumn({ titulo, ordem, lista_id: listaId });
+      const newColumn = await columnService.createColumn({ titulo, ordem, lista_id: listaId, tipo });
       await carregarColunas();
       return newColumn;
     } catch (err: any) {
@@ -45,7 +45,7 @@ export function useColumns(listaId?: string) {
     }
   };
 
-  const updateColumn = async (id: string, updates: Partial<Pick<Coluna, 'titulo' | 'ordem'>>) => {
+  const updateColumn = async (id: string, updates: Partial<Pick<Coluna, 'titulo' | 'ordem' | 'tipo'>>) => {
     try {
       setError(null);
       const updatedColumn = await columnService.updateColumn(id, updates);

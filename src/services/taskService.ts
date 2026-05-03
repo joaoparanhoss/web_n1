@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabase';
-import { Tarefa, StatusTarefa } from '../types/database';
+import { Tarefa } from '../types/database';
 
 export const taskService = {
   /**
@@ -49,20 +49,6 @@ export const taskService = {
     const { data, error } = await supabase
       .from('tarefas')
       .update(taskData)
-      .eq('id', id)
-      .select()
-      .maybeSingle();
-    if (error) throw error;
-    return data as Tarefa;
-  },
-
-  /**
-   * Atualiza o status de uma tarefa
-   */
-  async updateTaskStatus(id: string, status: StatusTarefa) {
-    const { data, error } = await supabase
-      .from('tarefas')
-      .update({ status })
       .eq('id', id)
       .select()
       .maybeSingle();

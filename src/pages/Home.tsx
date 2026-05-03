@@ -17,7 +17,7 @@ import { useAuthContext } from '../contexts/AuthContext';
 import { useLista } from '../hooks/useLista';
 import { useTasks } from '../hooks/useTasks';
 import { useColumns } from '../hooks/useColumns';
-import { Tarefa, StatusTarefa, Coluna } from '../types/database';
+import { Tarefa, Prioridade, Coluna, TipoColuna } from '../types/database';
 
 function DroppableColumn({ id, children, className }: { id: string; children: React.ReactNode; className: string }) {
   const { isOver, setNodeRef } = useDroppable({ id });
@@ -57,10 +57,10 @@ export function Home() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editando, setEditando] = useState<Tarefa | null>(null);
   const [visualizando, setVisualizando] = useState<Tarefa | null>(null);
-  
+
   const [tituloForm, setTituloForm] = useState('');
   const [descricaoForm, setDescricaoForm] = useState('');
-  const [statusForm, setStatusForm] = useState<StatusTarefa>('pendente');
+  const [prioridadeForm, setPrioridadeForm] = useState<Prioridade>('BAIXA');
   const [loadingSubmit, setLoadingSubmit] = useState(false);
 
   // Estados do modal de colunas
@@ -68,6 +68,7 @@ export function Home() {
   const [editandoColuna, setEditandoColuna] = useState<Coluna | null>(null);
   const [tituloColunaForm, setTituloColunaForm] = useState('');
   const [ordemColunaForm, setOrdemColunaForm] = useState(0);
+  const [tipoColunaForm, setTipoColunaForm] = useState<TipoColuna>('padrao');
   const [loadingColunaSubmit, setLoadingColunaSubmit] = useState(false);
 
   const sensors = useSensors(
@@ -97,7 +98,7 @@ export function Home() {
     setEditando(null);
     setTituloForm('');
     setDescricaoForm('');
-    setStatusForm('pendente');
+    setPrioridadeForm('BAIXA');
     setModalOpen(true);
   };
 
@@ -107,7 +108,7 @@ export function Home() {
     setEditando(tarefa);
     setTituloForm(tarefa.titulo);
     setDescricaoForm(tarefa.descricao || '');
-    setStatusForm(tarefa.status);
+    setPrioridadeForm(tarefa.prioridade || 'BAIXA');
     setModalOpen(true);
   };
 
@@ -121,20 +122,20 @@ export function Home() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !lista) return;
-    
+
     setLoadingSubmit(true);
     try {
       if (editando) {
-        await updateTask(editando.id, { 
-          titulo: tituloForm, 
+        await updateTask(editando.id, {
+          titulo: tituloForm,
           descricao: descricaoForm,
-          status: statusForm
+          prioridade: prioridadeForm
         });
       } else {
-        await createTask({ 
-          titulo: tituloForm, 
+        await createTask({
+          titulo: tituloForm,
           descricao: descricaoForm,
-          status: statusForm,
+          prioridade: prioridadeForm,
           lista_id: lista.id,
           usuario_id: user.id
         });
@@ -152,6 +153,7 @@ export function Home() {
     setEditandoColuna(null);
     setTituloColunaForm('');
     setOrdemColunaForm(0);
+    setTipoColunaForm('padrao');
     setModalColunaOpen(true);
   };
 
@@ -159,22 +161,32 @@ export function Home() {
     setEditandoColuna(coluna);
     setTituloColunaForm(coluna.titulo);
     setOrdemColunaForm(coluna.ordem);
+    setTipoColunaForm(coluna.tipo || 'padrao');
     setModalColunaOpen(true);
   };
 
   const handleColunaSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!lista) return;
-    
+
+    if (tipoColunaForm === 'concluido' || tipoColunaForm === 'cancelado') {
+      const existingColumn = colunas.find(c => c.tipo === tipoColunaForm && c.id !== editandoColuna?.id);
+      if (existingColumn) {
+        alert(`Esta lista já possui uma coluna do tipo ${tipoColunaForm === 'concluido' ? 'Concluído' : 'Cancelado'}.`);
+        return;
+      }
+    }
+
     setLoadingColunaSubmit(true);
     try {
       if (editandoColuna) {
         await updateColumn(editandoColuna.id, {
           titulo: tituloColunaForm,
-          ordem: ordemColunaForm
+          ordem: ordemColunaForm,
+          tipo: tipoColunaForm
         });
       } else {
-        await createColumn(tituloColunaForm);
+        await createColumn(tituloColunaForm, tipoColunaForm);
       }
       setModalColunaOpen(false);
     } catch (err) {
@@ -197,28 +209,37 @@ export function Home() {
     }
   };
 
-  const formatStatusColor = (status: StatusTarefa) => {
-    switch(status) {
-      case 'pendente': return 'bg-yellow-500';
-      case 'em andamento': return 'bg-blue-500';
-      case 'concluido': return 'bg-green-500';
-      default: return 'bg-slate-500';
+  const formatPriorityColor = (prioridade: Prioridade | null | undefined) => {
+    switch (prioridade) {
+      case 'ALTA': return 'bg-red-500';
+      case 'MEDIA': return 'bg-yellow-500';
+      case 'BAIXA': return 'bg-green-500';
+      default: return 'bg-slate-600';
     }
   };
 
-  const formatStatus = (status: StatusTarefa) => {
-    switch(status) {
-      case 'pendente': return 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20';
-      case 'em andamento': return 'bg-blue-500/10 text-blue-500 border-blue-500/20';
-      case 'concluido': return 'bg-green-500/10 text-green-500 border-green-500/20';
-      default: return 'bg-slate-500/10 text-slate-500 border-slate-500/20';
+  const formatPriorityBadge = (prioridade: Prioridade | null | undefined) => {
+    switch (prioridade) {
+      case 'ALTA': return 'bg-red-900/50 text-red-400 border-red-500';
+      case 'MEDIA': return 'bg-yellow-900/50 text-yellow-400 border-yellow-500';
+      case 'BAIXA': return 'bg-green-900/50 text-green-400 border-green-500';
+      default: return 'bg-slate-800 text-slate-400 border-slate-600';
+    }
+  };
+
+  const formatPriorityLabel = (prioridade: Prioridade | null | undefined) => {
+    switch (prioridade) {
+      case 'ALTA': return 'Alta';
+      case 'MEDIA': return 'Média';
+      case 'BAIXA': return 'Baixa';
+      default: return 'Sem prioridade';
     }
   };
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-300">
       <Header />
-      
+
       <main className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
         {/* User Profile Section */}
         <div className="mb-10 bg-slate-900 border border-slate-800 rounded-xl p-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -313,7 +334,7 @@ export function Home() {
                           </button>
                         </div>
                       </div>
-                      
+
                       <div className="flex flex-col gap-3 min-h-[20px]">
                         {tarefas.filter(t => t.coluna_id === coluna.id).map((tarefa) => (
                           <DraggableTask
@@ -322,8 +343,8 @@ export function Home() {
                             className="group/task bg-slate-900 border border-slate-800 rounded-xl hover:border-slate-700 transition-colors hover:shadow-lg flex flex-col relative overflow-hidden cursor-pointer"
                             onClick={() => setVisualizando(tarefa)}
                           >
-                            <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${formatStatusColor(tarefa.status)}`} />
-                            
+                            <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${formatPriorityColor(tarefa.prioridade)}`} />
+
                             <div className="p-4 pl-5">
                               <div className="flex flex-col gap-1 mb-2 pr-4">
                                 <h4 className="text-base font-semibold text-white break-words" title={tarefa.titulo}>
@@ -335,7 +356,7 @@ export function Home() {
                                   </p>
                                 )}
                               </div>
-                              
+
                               <div className="mt-auto flex justify-end items-center gap-2">
                                 <div className="flex gap-1 relative z-10">
                                   <button
@@ -373,7 +394,7 @@ export function Home() {
       {visualizando && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50" onClick={() => setVisualizando(null)}>
           <div className="bg-slate-900 border border-slate-700 rounded-xl max-w-md w-full overflow-hidden shadow-2xl relative" onClick={e => e.stopPropagation()}>
-            <div className={`absolute top-0 left-0 right-0 h-2 ${formatStatusColor(visualizando.status)}`} />
+            <div className={`absolute top-0 left-0 right-0 h-2 ${formatPriorityColor(visualizando.prioridade)}`} />
             <div className="flex justify-between items-start p-5 border-b border-slate-800 mt-2">
               <h3 className="text-xl font-bold text-white break-words pr-8">
                 {visualizando.titulo}
@@ -385,22 +406,22 @@ export function Home() {
                 <X size={24} />
               </button>
             </div>
-            
+
             <div className="p-5 space-y-4">
               <div>
-                <h4 className="text-sm font-medium text-slate-400 mb-1">Status</h4>
-                <div className={`inline-block text-xs px-2.5 py-1 uppercase font-bold rounded-full border ${formatStatus(visualizando.status)}`}>
-                  {visualizando.status}
+                <h4 className="text-sm font-medium text-slate-400 mb-1">Prioridade</h4>
+                <div className={`inline-block text-xs px-2.5 py-1 uppercase font-bold rounded-full border ${formatPriorityBadge(visualizando.prioridade)}`}>
+                  {formatPriorityLabel(visualizando.prioridade)}
                 </div>
               </div>
-              
+
               <div>
                 <h4 className="text-sm font-medium text-slate-400 mb-1">Descrição</h4>
                 <div className="bg-slate-800/50 border border-slate-700/50 rounded-lg p-3 min-h-[100px] text-slate-300 text-sm whitespace-pre-wrap break-words">
                   {visualizando.descricao || <span className="text-slate-500 italic">Nenhuma descrição.</span>}
                 </div>
               </div>
-              
+
               <div className="pt-4 flex gap-3 justify-end border-t border-slate-800">
                 <button
                   onClick={(e) => abrirModalEditar(e, visualizando)}
@@ -430,7 +451,7 @@ export function Home() {
                 <X size={24} />
               </button>
             </div>
-            
+
             <form onSubmit={handleSubmit} className="p-5 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-1">
@@ -445,7 +466,7 @@ export function Home() {
                   placeholder="Ex: Comprar leite"
                 />
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-1">
                   Descrição
@@ -460,19 +481,19 @@ export function Home() {
 
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-1">
-                  Status
+                  Prioridade
                 </label>
                 <select
-                  value={statusForm}
-                  onChange={(e) => setStatusForm(e.target.value as StatusTarefa)}
+                  value={prioridadeForm}
+                  onChange={(e) => setPrioridadeForm(e.target.value as Prioridade)}
                   className="w-full bg-slate-800 border-slate-700 border rounded p-3 text-white focus:outline-none focus:border-blue-500 transition-colors disabled:opacity-50 appearance-none"
                 >
-                  <option value="pendente">Pendente</option>
-                  <option value="em andamento">Em Andamento</option>
-                  <option value="concluido">Concluído</option>
+                  <option value="BAIXA">Baixa</option>
+                  <option value="MEDIA">Média</option>
+                  <option value="ALTA">Alta</option>
                 </select>
               </div>
-              
+
               <div className="pt-4 flex gap-3 justify-end">
                 <button
                   type="button"
@@ -510,7 +531,7 @@ export function Home() {
                 <X size={24} />
               </button>
             </div>
-            
+
             <form onSubmit={handleColunaSubmit} className="p-5 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-1">
@@ -541,7 +562,22 @@ export function Home() {
                   />
                 </div>
               )}
-              
+
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1">
+                  Tipo da coluna
+                </label>
+                <select
+                  value={tipoColunaForm}
+                  onChange={(e) => setTipoColunaForm(e.target.value as TipoColuna)}
+                  className="w-full bg-slate-800 border-slate-700 border rounded p-3 text-white focus:outline-none focus:border-blue-500 transition-colors appearance-none"
+                >
+                  <option value="padrao">Padrão</option>
+                  <option value="concluido">Concluído</option>
+                  <option value="cancelado">Cancelado</option>
+                </select>
+              </div>
+
               <div className="pt-4 flex gap-3 justify-end">
                 <button
                   type="button"

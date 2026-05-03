@@ -27,9 +27,10 @@ export const columnService = {
   },
 
   async createColumn(columnData: Omit<Coluna, 'id' | 'criado_em' | 'atualizado_em'>) {
+    const columnDataWithTipo = { ...columnData, tipo: columnData.tipo || 'padrao' };
     const { data, error } = await supabase
       .from('colunas')
-      .insert([columnData])
+      .insert([columnDataWithTipo])
       .select()
       .maybeSingle();
 
@@ -39,9 +40,9 @@ export const columnService = {
 
   async createDefaultColumns(listaId: string) {
     const defaultColumns = [
-      { titulo: 'A fazer', ordem: 1, lista_id: listaId },
-      { titulo: 'Em andamento', ordem: 2, lista_id: listaId },
-      { titulo: 'Concluído', ordem: 3, lista_id: listaId },
+      { titulo: 'A fazer', ordem: 1, lista_id: listaId, tipo: 'padrao' },
+      { titulo: 'Em andamento', ordem: 2, lista_id: listaId, tipo: 'padrao' },
+      { titulo: 'Concluído', ordem: 3, lista_id: listaId, tipo: 'concluido' },
     ];
 
     const { data, error } = await supabase
@@ -53,7 +54,7 @@ export const columnService = {
     return data as Coluna[];
   },
 
-  async updateColumn(id: string, updates: Partial<Pick<Coluna, 'titulo' | 'ordem'>>) {
+  async updateColumn(id: string, updates: Partial<Pick<Coluna, 'titulo' | 'ordem' | 'tipo'>>) {
     const { data, error } = await supabase
       .from('colunas')
       .update(updates)
