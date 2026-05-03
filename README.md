@@ -14,10 +14,10 @@ No cotidiano, é comum perder o controle sobre as tarefas, o que gera falta de f
 
 Criar uma aplicação web que permita ao usuário:
 
-- Criar e organizar tarefas em colunas
+- Criar e organizar tarefas em colunas no formato Kanban
 - Mover tarefas entre os estágios do fluxo
 - Definir prioridades e prazos para cada tarefa
-- Acompanhar o progresso de forma visual
+- Acompanhar o progresso de forma visual através de um dashboard
 
 ---
 
@@ -48,6 +48,7 @@ Criar uma aplicação web que permita ao usuário:
 | id | uuid |
 | titulo | string |
 | ordem | integer |
+| tipo | `padrao` \| `concluido` \| `cancelado` |
 | lista_id | uuid (FK) |
 
 #### Tarefa
@@ -56,8 +57,7 @@ Criar uma aplicação web que permita ao usuário:
 | id | uuid |
 | titulo | string |
 | descricao | string |
-| prioridade | `BAIXA` \| `MÉDIA` \| `ALTA` |
-| status | string |
+| prioridade | `BAIXA` \| `MEDIA` \| `ALTA` |
 | coluna_id | uuid (FK) |
 | lista_id | uuid (FK) |
 | data_limite | date |
@@ -79,13 +79,14 @@ Criar uma aplicação web que permita ao usuário:
 | ID | Descrição |
 |----|-----------|
 | RF01 | **Autenticação de Usuário** — Registro e login via e-mail e senha. |
-| RF02 | **Gerenciamento de Listas** — Criar, editar e excluir listas. |
-| RF03 | **Gerenciamento de Colunas** — Criar, renomear, reordenar e excluir colunas dentro de uma lista. |
-| RF04 | **Gerenciamento de Tarefas** — Criar tarefas com título, descrição, prioridade e prazo; editar e excluir tarefas. |
-| RF05 | **Mover Tarefas** — Arrastar e soltar tarefas entre colunas (drag and drop). |
-| RF06 | **Prioridade Visual** — Exibir indicador visual de prioridade (baixa, média, alta) nas tarefas. |
-| RF07 | **Etiquetas** — Adicionar etiquetas às tarefas para categorização. |
-| RF08 | **Assistente com IA** *(planejado — sujeito a alterações)* — Integração com um modelo de linguagem (LLM) para auxiliar o usuário na gestão das tarefas. Possíveis funcionalidades: sugerir descrições e prioridades ao criar uma tarefa; resumir o estado atual de uma lista; responder perguntas sobre as tarefas em linguagem natural. |
+| RF02 | **Gerenciamento de Listas** — Criar, editar e excluir listas. Ao criar uma lista, três colunas padrão são geradas automaticamente. Navegação entre listas via dropdown no header. |
+| RF03 | **Gerenciamento de Colunas** — Criar, renomear, reordenar e excluir colunas dentro de uma lista. Cada coluna possui um tipo semântico (`padrao`, `concluido` ou `cancelado`) para identificar o significado das tarefas nela contidas. |
+| RF04 | **Gerenciamento de Tarefas** — Criar tarefas com título, descrição, prioridade e prazo; editar, mover entre colunas e excluir tarefas. |
+| RF05 | **Mover Tarefas** — Mover tarefas entre colunas via seletor. *(Drag and drop planejado)* |
+| RF06 | **Prioridade Visual** — Exibir indicador visual de prioridade (baixa, média, alta) nas tarefas através de barra colorida lateral e badge. |
+| RF07 | **Etiquetas** — Adicionar etiquetas às tarefas para categorização. *(planejado)* |
+| RF08 | **Dashboard de Métricas** — Tela com gráficos e indicadores sobre o estado das tarefas do usuário: distribuição por status de coluna, tarefas concluídas por mês, tarefas abertas por lista e distribuição por prioridade. Suporta filtro por lista. |
+| RF09 | **Assistente com IA** *(planejado — sujeito a alterações)* — Integração com um modelo de linguagem (LLM) para auxiliar o usuário na gestão das tarefas. Possíveis funcionalidades: sugerir descrições e prioridades ao criar uma tarefa; resumir o estado atual de uma lista; responder perguntas sobre as tarefas em linguagem natural. |
 
 ---
 
@@ -95,8 +96,10 @@ Criar uma aplicação web que permita ao usuário:
 |----|-----------|
 | RNF01 | **Responsividade** — Interface adaptada para desktop e dispositivos móveis. |
 | RNF02 | **Persistência de Dados** — Dados armazenados em banco de dados remoto via Supabase. |
-| RNF03 | **Autenticação Segura** — Uso do sistema de autenticação nativo do Supabase. |
-| RNF04 | **Experiência do Usuário** — Atualizações na tela em tempo real, sem necessidade de recarregar a página. |
+| RNF03 | **Autenticação Segura** — Uso do sistema de autenticação nativo do Supabase com proteção de rotas via `PrivateRoute`. Validação dupla: RLS no banco e verificação de ownership no frontend. |
+| RNF04 | **Experiência do Usuário** — Atualizações na tela em tempo real via WebSocket, sem necessidade de recarregar a página. |
+| RNF05 | **Integridade dos Dados** — Triggers e constraints no banco garantem regras de negócio, como a criação automática de colunas padrão ao criar uma lista e a restrição de no máximo uma coluna do tipo `concluido` e uma do tipo `cancelado` por lista. |
+| RNF06 | **CI/CD** — Pipeline de integração contínua configurado via GitHub Actions, garantindo que o build do projeto é validado a cada push na branch `main`. |
 
 ---
 
@@ -112,24 +115,25 @@ Criar uma aplicação web que permita ao usuário:
 ![C4 Component](https://www.plantuml.com/plantuml/png/VLNDSYD53BxxAKHEsSAn3t3QqswSG58ah8aTE51KIfvMnarwkeUMsYHBKSL3y08B1sgfuiY5gz-49w75_6JMtir9BPMa_gHFhNx1Wb5IvKOVML-uP0ZM8ZK_dquZ_ZWfhQpJAZ758dWXBvCYLDFQeTUO8nRZx6ew-_HehgRhoujfXImKi-bc5gewU8sfDVz8h3Y24ujbn0h14FGUn73uvVQl3Jduv1dy-ykly5aCUf-1Bz2lqCESc0FcB7EA7FnXueJHXZ4SN7FQlid7WtnklE27H51I95zOXEp881ZfDikQrC7ovE3PQBHuOA7gvlHU3ZdLk4AcbqdMES-YLK5rJVnvbmsJTi4MkFrZ-tk0JJRHKONM0G6JNwDcVa_Ya-DXsXCKFP2cFaPV1Es6GHCOve6bZBJuwk83cQu8dTYAXlawc-PxAGcTVQq0_oO6ga0ejnbYzW75-msj5g6u8z4BHhFW1QsdU7CSaZSO7mvlszxdP3qDt-Oh2e6FOVbGqwA8jbRbQolqtS4p-6aq0e17FWzhB8cL49MAgWdl7LXj5w6qVfp1brPdPWndGSkQkgpYzBar-SnK7QcE4tWLCwyi4IjOXt37G50C1gZ6Y51fDH6KSNAeDEy0qp6cUr5ioksiKOS8UyCbUjc-hI00iQ09KBgmGWU6TgPW0gVtTMusi2tzUQv8vNNTo5T9W210M7rF4a2VqZughKSXdQaSW4aieOBUceClB2luzgG7cWMNAjyObyXtF85kNAiEkWi5kd4MQAmlWO1Y30nrYA2563IqZuefRcn12cpH7XN5O08kWqckiIf9hTSOYg2GUbKogbQPm3a7XnL8CAZy9T-rKJK8q0tr-xXhJugeDtzmlCu8ZKxLFDeD2bs591dBGb0I7wCfAVFcgChkWM5ZEQ5bY9J4vkUpVRCXo_iO91VFRHDskt7kXU8jjcqoA4qTmXFGiOge5st_oGLdQP3xrlDpK3Pn3CgbptAf-ohBwsRDxUFeji7CsQmETq5ZKGIwchdhPjEJSy-o_Kr7em62O08KaL3QJ1FGEp2ATMiqg1EYL0M6mD0D113Kv08CNf0Y_7aqkYBtk9gx9Q1zYVaCIZ22xThqFqdBvNoHOpMmzHyyqOljd-q4xx-wTuEw5pHROuMDzivqxruncAGhyeQYVOt3TTBwjscxmliBgktRfYkcRqiVyuX_ZwHhHjrJUzy8GV3QJ1rEoZVuiWFSvduoMLwBqHA33x12NtITsGtO-UEo640OSF5ayCbnHmiG5v4sxR_LnyCKhauNowVJ33-nKowI8D2cUOY6W8cvXTJ_LVfLlI1lKkN-0m00)
 
 ### Frontend
-- **React** — biblioteca para construção da interface
+- **React 19** — biblioteca para construção da interface
 - **TypeScript** — tipagem estática
 - **TailwindCSS** — estilização utilitária
 - **Vite** — bundler e servidor de desenvolvimento
+- **Chart.js + react-chartjs-2** — gráficos do dashboard
+- **React Router DOM v7** — navegação entre rotas
 
 ### Backend
-- **Node.js** — runtime JavaScript server-side
-- **Express** — framework para criação de rotas e middlewares da API REST
-- **TypeScript** — tipagem estática
-- **Supabase (PostgreSQL + Auth + Realtime)** — banco de dados, autenticação e sincronização em tempo real
+- **Supabase (PostgreSQL + Auth + Realtime)** — banco de dados, autenticação, Row Level Security e sincronização em tempo real via WebSocket
+- **Triggers e Functions (PL/pgSQL)** — lógica de negócio no banco: criação automática de lista e colunas padrão ao registrar usuário, validação de tipo único por lista
 
 ### IA *(planejado)*
 - API de um LLM externo (a definir)
 
 ---
 
-## 6. Organização de Tarefas
+## 7. Organização de Tarefas
 
 ### Ferramentas
 - **ClickUp** — gerenciamento de tarefas e sprints
 - **Git + GitHub** — versionamento do código
+- **GitHub Actions** — pipeline de integração contínua (CI)
