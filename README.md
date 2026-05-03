@@ -131,7 +131,7 @@ Criar uma aplicação web que permita ao usuário:
 
 ---
 
-## 7. Organização de Tarefas
+## 6. Organização de Tarefas
 
 ### Ferramentas
 - **ClickUp** — gerenciamento de tarefas e sprints
