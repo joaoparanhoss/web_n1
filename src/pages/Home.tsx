@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Edit2, Trash2, Plus, X, GripVertical } from 'lucide-react';
+import { Edit2, Trash2, Plus, GripVertical } from 'lucide-react';
 import {
   DndContext,
   DragEndEvent,
@@ -11,13 +11,16 @@ import {
   useDraggable
 } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
-import { Header } from '../components/Header';
+import { AppLayout } from '../components/AppLayout';
 import { useParams } from 'react-router-dom';
 import { useAuthContext } from '../contexts/AuthContext';
 import { useLista } from '../hooks/useLista';
 import { useTasks } from '../hooks/useTasks';
 import { useColumns } from '../hooks/useColumns';
 import { Tarefa, Prioridade, Coluna, TipoColuna } from '../types/database';
+import { TaskModal } from '../components/modals/TaskModal';
+import { ColumnModal } from '../components/modals/ColumnModal';
+import { TaskViewModal } from '../components/modals/TaskViewModal';
 
 function DroppableColumn({ id, children, className }: { id: string; children: React.ReactNode; className: string }) {
   const { isOver, setNodeRef } = useDroppable({ id });
@@ -34,12 +37,18 @@ function DraggableTask({ id, children, className, onClick }: { id: string; child
   const style = {
     transform: CSS.Translate.toString(transform),
     opacity: isDragging ? 0.5 : 1,
-    cursor: 'auto',
     zIndex: isDragging ? 50 : 1,
   };
   return (
-    <div ref={setNodeRef} style={style} className={className} onClick={onClick}>
-      <div className="absolute top-3 right-3 text-slate-500 cursor-grab active:cursor-grabbing hover:text-slate-300 z-10" {...listeners} {...attributes} title="Arrastar">
+    <div 
+      ref={setNodeRef} 
+      style={style} 
+      className={className} 
+      onClick={onClick}
+      {...listeners} 
+      {...attributes}
+    >
+      <div className="absolute top-3 right-3 text-slate-500 hover:text-slate-300 z-10" title="Arrastar">
         <GripVertical size={16} />
       </div>
       {children}
@@ -58,18 +67,9 @@ export function Home() {
   const [editando, setEditando] = useState<Tarefa | null>(null);
   const [visualizando, setVisualizando] = useState<Tarefa | null>(null);
 
-  const [tituloForm, setTituloForm] = useState('');
-  const [descricaoForm, setDescricaoForm] = useState('');
-  const [prioridadeForm, setPrioridadeForm] = useState<Prioridade>('BAIXA');
-  const [loadingSubmit, setLoadingSubmit] = useState(false);
-
   // Estados do modal de colunas
   const [modalColunaOpen, setModalColunaOpen] = useState(false);
   const [editandoColuna, setEditandoColuna] = useState<Coluna | null>(null);
-  const [tituloColunaForm, setTituloColunaForm] = useState('');
-  const [ordemColunaForm, setOrdemColunaForm] = useState(0);
-  const [tipoColunaForm, setTipoColunaForm] = useState<TipoColuna>('padrao');
-  const [loadingColunaSubmit, setLoadingColunaSubmit] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -96,19 +96,13 @@ export function Home() {
 
   const abrirModalCriar = () => {
     setEditando(null);
-    setTituloForm('');
-    setDescricaoForm('');
-    setPrioridadeForm('BAIXA');
     setModalOpen(true);
   };
 
-  const abrirModalEditar = (e: React.MouseEvent, tarefa: Tarefa) => {
-    e.stopPropagation();
+  const abrirModalEditar = (e: React.MouseEvent | undefined, tarefa: Tarefa) => {
+    if (e) e.stopPropagation();
     setVisualizando(null);
     setEditando(tarefa);
-    setTituloForm(tarefa.titulo);
-    setDescricaoForm(tarefa.descricao || '');
-    setPrioridadeForm(tarefa.prioridade || 'BAIXA');
     setModalOpen(true);
   };
 
@@ -119,81 +113,61 @@ export function Home() {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleTaskSubmit = async (data: { titulo: string; descricao: string; prioridade: Prioridade; dataLimite: string }) => {
     if (!user || !lista) return;
 
-    setLoadingSubmit(true);
     try {
       if (editando) {
         await updateTask(editando.id, {
-          titulo: tituloForm,
-          descricao: descricaoForm,
-          prioridade: prioridadeForm
+          titulo: data.titulo,
+          descricao: data.descricao,
+          prioridade: data.prioridade,
+          data_limite: data.dataLimite || null
         });
       } else {
         await createTask({
-          titulo: tituloForm,
-          descricao: descricaoForm,
-          prioridade: prioridadeForm,
+          titulo: data.titulo,
+          descricao: data.descricao,
+          prioridade: data.prioridade,
           lista_id: lista.id,
-          usuario_id: user.id
+          usuario_id: user.id,
+          data_limite: data.dataLimite || null
         });
       }
       setModalOpen(false);
     } catch (err) {
       console.error(err);
       alert('Erro ao salvar tarefa');
-    } finally {
-      setLoadingSubmit(false);
     }
   };
 
   const abrirModalColunaCriar = () => {
     setEditandoColuna(null);
-    setTituloColunaForm('');
-    setOrdemColunaForm(0);
-    setTipoColunaForm('padrao');
     setModalColunaOpen(true);
   };
 
   const abrirModalColunaEditar = (coluna: Coluna) => {
     setEditandoColuna(coluna);
-    setTituloColunaForm(coluna.titulo);
-    setOrdemColunaForm(coluna.ordem);
-    setTipoColunaForm(coluna.tipo || 'padrao');
     setModalColunaOpen(true);
   };
 
-  const handleColunaSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleColumnSubmit = async (data: { titulo: string; ordem: number; tipo: TipoColuna }) => {
     if (!lista) return;
 
-    if (tipoColunaForm === 'concluido' || tipoColunaForm === 'cancelado') {
-      const existingColumn = colunas.find(c => c.tipo === tipoColunaForm && c.id !== editandoColuna?.id);
-      if (existingColumn) {
-        alert(`Esta lista já possui uma coluna do tipo ${tipoColunaForm === 'concluido' ? 'Concluído' : 'Cancelado'}.`);
-        return;
-      }
-    }
-
-    setLoadingColunaSubmit(true);
     try {
       if (editandoColuna) {
         await updateColumn(editandoColuna.id, {
-          titulo: tituloColunaForm,
-          ordem: ordemColunaForm,
-          tipo: tipoColunaForm
+          titulo: data.titulo,
+          ordem: data.ordem,
+          tipo: data.tipo
         });
       } else {
-        await createColumn(tituloColunaForm, tipoColunaForm);
+        await createColumn(data.titulo, data.tipo);
       }
       setModalColunaOpen(false);
     } catch (err) {
       console.error(err);
       alert('Erro ao salvar coluna');
-    } finally {
-      setLoadingColunaSubmit(false);
     }
   };
 
@@ -237,10 +211,8 @@ export function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-300">
-      <Header />
-
-      <main className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
+    <AppLayout>
+      <div className="text-slate-300 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
         {/* User Profile Section */}
         <div className="mb-10 bg-slate-900 border border-slate-800 rounded-xl p-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
@@ -388,216 +360,43 @@ export function Home() {
             )}
           </>
         )}
-      </main>
 
-      {/* Modal de Visualizar Tarefa */}
-      {visualizando && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50" onClick={() => setVisualizando(null)}>
-          <div className="bg-slate-900 border border-slate-700 rounded-xl max-w-md w-full overflow-hidden shadow-2xl relative" onClick={e => e.stopPropagation()}>
-            <div className={`absolute top-0 left-0 right-0 h-2 ${formatPriorityColor(visualizando.prioridade)}`} />
-            <div className="flex justify-between items-start p-5 border-b border-slate-800 mt-2">
-              <h3 className="text-xl font-bold text-white break-words pr-8">
-                {visualizando.titulo}
-              </h3>
-              <button
-                onClick={() => setVisualizando(null)}
-                className="text-slate-400 hover:text-white transition-colors shrink-0"
-              >
-                <X size={24} />
-              </button>
-            </div>
+      <TaskViewModal
+        tarefa={visualizando}
+        onClose={() => setVisualizando(null)}
+        onEdit={(tarefa) => abrirModalEditar(undefined, tarefa)}
+        formatPriorityColor={formatPriorityColor}
+        formatPriorityBadge={formatPriorityBadge}
+        formatPriorityLabel={formatPriorityLabel}
+      />
 
-            <div className="p-5 space-y-4">
-              <div>
-                <h4 className="text-sm font-medium text-slate-400 mb-1">Prioridade</h4>
-                <div className={`inline-block text-xs px-2.5 py-1 uppercase font-bold rounded-full border ${formatPriorityBadge(visualizando.prioridade)}`}>
-                  {formatPriorityLabel(visualizando.prioridade)}
-                </div>
-              </div>
+      <TaskModal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        onSubmit={handleTaskSubmit}
+        isEditing={!!editando}
+        initialData={editando ? {
+          titulo: editando.titulo,
+          descricao: editando.descricao || '',
+          prioridade: editando.prioridade || 'BAIXA',
+          dataLimite: editando.data_limite || ''
+        } : undefined}
+      />
 
-              <div>
-                <h4 className="text-sm font-medium text-slate-400 mb-1">Descrição</h4>
-                <div className="bg-slate-800/50 border border-slate-700/50 rounded-lg p-3 min-h-[100px] text-slate-300 text-sm whitespace-pre-wrap break-words">
-                  {visualizando.descricao || <span className="text-slate-500 italic">Nenhuma descrição.</span>}
-                </div>
-              </div>
-
-              <div className="pt-4 flex gap-3 justify-end border-t border-slate-800">
-                <button
-                  onClick={(e) => abrirModalEditar(e, visualizando)}
-                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
-                >
-                  <Edit2 size={16} />
-                  Editar
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal de Tarefa */}
-      {modalOpen && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
-          <div className="bg-slate-900 border border-slate-700 rounded-xl max-w-md w-full overflow-hidden shadow-2xl">
-            <div className="flex justify-between items-center p-5 border-b border-slate-800">
-              <h3 className="text-xl font-bold text-white">
-                {editando ? 'Editar Tarefa' : 'Nova Tarefa'}
-              </h3>
-              <button
-                onClick={() => setModalOpen(false)}
-                className="text-slate-400 hover:text-white transition-colors"
-              >
-                <X size={24} />
-              </button>
-            </div>
-
-            <form onSubmit={handleSubmit} className="p-5 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1">
-                  Título
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={tituloForm}
-                  onChange={(e) => setTituloForm(e.target.value)}
-                  className="w-full bg-slate-800 border-slate-700 border rounded p-3 text-white focus:outline-none focus:border-blue-500 transition-colors"
-                  placeholder="Ex: Comprar leite"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1">
-                  Descrição
-                </label>
-                <textarea
-                  value={descricaoForm}
-                  onChange={(e) => setDescricaoForm(e.target.value)}
-                  className="w-full bg-slate-800 border-slate-700 border rounded p-3 text-white focus:outline-none focus:border-blue-500 transition-colors bg-transparent min-h-[100px] resize-y"
-                  placeholder="Detalhes adicionais (opcional)"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1">
-                  Prioridade
-                </label>
-                <select
-                  value={prioridadeForm}
-                  onChange={(e) => setPrioridadeForm(e.target.value as Prioridade)}
-                  className="w-full bg-slate-800 border-slate-700 border rounded p-3 text-white focus:outline-none focus:border-blue-500 transition-colors disabled:opacity-50 appearance-none"
-                >
-                  <option value="BAIXA">Baixa</option>
-                  <option value="MEDIA">Média</option>
-                  <option value="ALTA">Alta</option>
-                </select>
-              </div>
-
-              <div className="pt-4 flex gap-3 justify-end">
-                <button
-                  type="button"
-                  onClick={() => setModalOpen(false)}
-                  className="px-4 py-2 font-medium text-slate-300 hover:text-white transition-colors"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={loadingSubmit}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-medium disabled:opacity-50 transition-colors"
-                >
-                  {loadingSubmit ? 'Salvando...' : 'Salvar'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Modal de Coluna */}
-      {modalColunaOpen && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
-          <div className="bg-slate-900 border border-slate-700 rounded-xl max-w-md w-full overflow-hidden shadow-2xl">
-            <div className="flex justify-between items-center p-5 border-b border-slate-800">
-              <h3 className="text-xl font-bold text-white">
-                {editandoColuna ? 'Editar Coluna' : 'Nova Coluna'}
-              </h3>
-              <button
-                onClick={() => setModalColunaOpen(false)}
-                className="text-slate-400 hover:text-white transition-colors"
-                type="button"
-              >
-                <X size={24} />
-              </button>
-            </div>
-
-            <form onSubmit={handleColunaSubmit} className="p-5 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1">
-                  Título
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={tituloColunaForm}
-                  onChange={(e) => setTituloColunaForm(e.target.value)}
-                  className="w-full bg-slate-800 border-slate-700 border rounded p-3 text-white focus:outline-none focus:border-blue-500 transition-colors"
-                  placeholder="Ex: A fazer"
-                />
-              </div>
-
-              {editandoColuna && (
-                <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-1">
-                    Ordem
-                  </label>
-                  <input
-                    type="number"
-                    required
-                    min="1"
-                    value={ordemColunaForm}
-                    onChange={(e) => setOrdemColunaForm(parseInt(e.target.value) || 1)}
-                    className="w-full bg-slate-800 border-slate-700 border rounded p-3 text-white focus:outline-none focus:border-blue-500 transition-colors"
-                  />
-                </div>
-              )}
-
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1">
-                  Tipo da coluna
-                </label>
-                <select
-                  value={tipoColunaForm}
-                  onChange={(e) => setTipoColunaForm(e.target.value as TipoColuna)}
-                  className="w-full bg-slate-800 border-slate-700 border rounded p-3 text-white focus:outline-none focus:border-blue-500 transition-colors appearance-none"
-                >
-                  <option value="padrao">Padrão</option>
-                  <option value="concluido">Concluído</option>
-                  <option value="cancelado">Cancelado</option>
-                </select>
-              </div>
-
-              <div className="pt-4 flex gap-3 justify-end">
-                <button
-                  type="button"
-                  onClick={() => setModalColunaOpen(false)}
-                  className="px-4 py-2 font-medium text-slate-300 hover:text-white transition-colors"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={loadingColunaSubmit}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-medium disabled:opacity-50 transition-colors"
-                >
-                  {loadingColunaSubmit ? 'Salvando...' : 'Salvar'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-    </div>
+      <ColumnModal
+        open={modalColunaOpen}
+        onClose={() => setModalColunaOpen(false)}
+        onSubmit={handleColumnSubmit}
+        isEditing={!!editandoColuna}
+        colunasExistentes={colunas}
+        editandoId={editandoColuna?.id}
+        initialData={editandoColuna ? {
+          titulo: editandoColuna.titulo,
+          ordem: editandoColuna.ordem,
+          tipo: editandoColuna.tipo || 'padrao'
+        } : undefined}
+      />
+      </div>
+    </AppLayout>
   );
 }

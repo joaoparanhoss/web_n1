@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, Link, Navigate } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
+import { authService } from '../services/authService';
 import { useAuthContext } from '../contexts/AuthContext';
 
 export function Register() {
@@ -22,17 +22,7 @@ export function Register() {
     setError('');
 
     try {
-      const { error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            name: nome // Envia o nome para o metadata do supabase auth
-          }
-        }
-      });
-
-      if (error) throw error;
+      await authService.signUp(email, password, nome);
       
       // Auto-redireciona para o login ou avisa para confirmar e-mail
       // No Supabase, se não exigir confirmação de e-mail por default

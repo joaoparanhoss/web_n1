@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, Link, Navigate } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
+import { authService } from '../services/authService';
 import { LogIn } from 'lucide-react';
 import { useAuthContext } from '../contexts/AuthContext';
 
@@ -23,12 +23,7 @@ export function Login() {
     setError('');
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (error) throw error;
+      await authService.signIn(email, password);
       navigate('/');
     } catch (err: any) {
       setError(err.message || 'Erro ao fazer login');

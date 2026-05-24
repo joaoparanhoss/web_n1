@@ -1,7 +1,8 @@
 import { useState, useMemo } from 'react';
-import { Header } from '../components/Header';
+import { AppLayout } from '../components/AppLayout';
 import { useLists } from '../hooks/useLists';
 import { useDashboard } from '../hooks/useDashboard';
+import { DashboardTarefa } from '../types/database';
 import { isSameMonth, parseISO, subMonths, format, differenceInDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import {
@@ -58,7 +59,7 @@ export function Dashboard() {
 
     const emAndamentoPorLista: Record<string, number> = {};
 
-    const proximasTarefas: any[] = [];
+    const proximasTarefas: DashboardTarefa[] = [];
 
     tarefas.forEach(t => {
       const tipo = t.colunas?.tipo;
@@ -95,7 +96,7 @@ export function Dashboard() {
       }
     });
 
-    proximasTarefas.sort((a, b) => new Date(a.data_limite).getTime() - new Date(b.data_limite).getTime());
+    proximasTarefas.sort((a, b) => new Date(a.data_limite!).getTime() - new Date(b.data_limite!).getTime());
 
     return {
       total: tarefas.length,
@@ -157,10 +158,8 @@ export function Dashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-300">
-      <Header hideListSelector={true} />
-      
-      <main className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
+    <AppLayout hideListSelector={true}>
+      <div className="text-slate-300 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
           <h2 className="text-2xl font-bold text-white">Dashboard</h2>
           
@@ -280,8 +279,8 @@ export function Dashboard() {
                           <td className="py-3 text-white font-medium">{t.titulo}</td>
                           <td className="py-3 text-slate-400">{t.listas?.titulo}</td>
                           <td className="py-3 text-slate-400">{t.colunas?.titulo}</td>
-                          <td className={`py-3 text-right font-medium ${isProximoVencimento(t.data_limite) ? 'text-red-400' : 'text-slate-300'}`}>
-                            {format(parseISO(t.data_limite), 'dd/MM/yyyy')}
+                          <td className={`py-3 text-right font-medium ${isProximoVencimento(t.data_limite!) ? 'text-red-400' : 'text-slate-300'}`}>
+                            {format(parseISO(t.data_limite!), 'dd/MM/yyyy')}
                           </td>
                         </tr>
                       ))}
@@ -292,7 +291,7 @@ export function Dashboard() {
             </div>
           </>
         )}
-      </main>
-    </div>
+      </div>
+    </AppLayout>
   );
 }

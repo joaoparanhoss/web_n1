@@ -37,7 +37,29 @@ export interface Tarefa {
   lista_id: string;
   coluna_id?: string;
   usuario_id?: string;
-  data_limite?: string;
+  data_limite?: string | null;
   criado_em?: string;
   atualizado_em?: string;
+}
+
+export interface DashboardTarefa {
+  id: string;
+  titulo: string;
+  descricao: string | null;
+  prioridade: Prioridade | null;
+  lista_id: string;
+  coluna_id: string;
+  data_limite: string | null;
+  criado_em: string;
+  atualizado_em: string;
+  colunas: {
+    id: string;
+    titulo: string;
+    tipo: TipoColuna;
+    ordem: number;
+  } | null;
+  listas: {
+    id: string;
+    titulo: string;
+  } | null;
 }

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, X } from 'lucide-react';
-import { Header } from '../components/Header';
+import { AppLayout } from '../components/AppLayout';
 import { useLists } from '../hooks/useLists';
 
 export function NoList() {
@@ -29,10 +29,8 @@ export function NoList() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-300 flex flex-col">
-      <Header hideListSelector />
-      
-      <main className="flex-1 flex items-center justify-center p-4">
+    <AppLayout hideListSelector={true}>
+      <div className="flex-1 flex items-center justify-center p-4 min-h-screen text-slate-300">
         <div className="text-center bg-slate-900 border border-slate-800 rounded-xl p-8 max-w-md w-full shadow-xl">
           <div className="mb-6">
             <h2 className="text-2xl font-bold text-white mb-2">Bem-vindo(a)!</h2>
@@ -47,7 +45,7 @@ export function NoList() {
             Criar primeira lista
           </button>
         </div>
-      </main>
+      </div>
 
       {modalOpen && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
@@ -86,6 +84,6 @@ export function NoList() {
           </div>
         </div>
       )}
-    </div>
+    </AppLayout>
   );
 }
