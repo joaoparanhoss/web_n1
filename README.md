@@ -61,6 +61,7 @@ Criar uma aplicação web que permita ao usuário:
 | coluna_id | uuid (FK) |
 | lista_id | uuid (FK) |
 | data_limite | date |
+| concluido_em | timestamptz |
 | criado_em | timestamp |
 | atualizado_em | timestamp |
 
