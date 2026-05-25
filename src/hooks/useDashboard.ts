@@ -9,13 +9,15 @@ export function useDashboard(listaId?: string) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const userId = user?.id;
+
   const fetchDashboardData = useCallback(async () => {
-    if (!user) return;
+    if (!userId) return;
     
     try {
       setLoading(true);
       setError(null);
-      const data = await dashboardService.getDashboardData(user.id, listaId);
+      const data = await dashboardService.getDashboardData(userId, listaId);
       setTarefas(data);
     } catch (err: any) {
       console.error('Erro ao buscar dados do dashboard:', err);
@@ -23,7 +25,7 @@ export function useDashboard(listaId?: string) {
     } finally {
       setLoading(false);
     }
-  }, [user, listaId]);
+  }, [userId, listaId]);
 
   useEffect(() => {
     fetchDashboardData();

@@ -25,7 +25,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     // Escutar mudanças de autenticação
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      // TOKEN_REFRESHED não muda o usuário — evita re-render desnecessário
+      // que causa refetch em cascata em todos os hooks dependentes
+      if (event === 'TOKEN_REFRESHED') {
+        setSession(session);
+        // NÃO atualiza user — o objeto User não mudou de identidade
+        return;
+      }
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);

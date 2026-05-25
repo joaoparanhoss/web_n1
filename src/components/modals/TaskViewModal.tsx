@@ -1,5 +1,7 @@
 import { X, Edit2 } from 'lucide-react';
 import { Tarefa, Prioridade } from '../../types/database';
+import { format, parseISO, differenceInDays } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 interface TaskViewModalProps {
   tarefa: Tarefa | null;
@@ -50,6 +52,19 @@ export function TaskViewModal({
               {tarefa.descricao || <span className="text-slate-500 italic">Nenhuma descrição.</span>}
             </div>
           </div>
+
+          {tarefa.data_limite && (
+            <div>
+              <h4 className="text-sm font-medium text-slate-400 mb-1">Prazo</h4>
+              <p className={`text-sm font-medium ${
+                differenceInDays(parseISO(tarefa.data_limite), new Date()) <= 3
+                  ? 'text-red-400'
+                  : 'text-slate-300'
+              }`}>
+                {format(parseISO(tarefa.data_limite), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+              </p>
+            </div>
+          )}
 
           <div className="pt-4 flex gap-3 justify-end border-t border-slate-800">
             <button

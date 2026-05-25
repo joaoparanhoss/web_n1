@@ -3,6 +3,8 @@ import { Edit2, Trash2, Plus, GripVertical } from 'lucide-react';
 import {
   DndContext,
   DragEndEvent,
+  DragStartEvent,
+  DragOverlay,
   useSensor,
   useSensors,
   PointerSensor,
@@ -10,7 +12,7 @@ import {
   useDroppable,
   useDraggable
 } from '@dnd-kit/core';
-import { CSS } from '@dnd-kit/utilities';
+
 import { AppLayout } from '../components/AppLayout';
 import { useParams } from 'react-router-dom';
 import { useAuthContext } from '../contexts/AuthContext';
@@ -33,11 +35,10 @@ function DroppableColumn({ id, children, className }: { id: string; children: Re
 }
 
 function DraggableTask({ id, children, className, onClick }: { id: string; children: React.ReactNode; className?: string; onClick?: () => void }) {
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id });
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id });
   const style = {
-    transform: CSS.Translate.toString(transform),
-    opacity: isDragging ? 0.5 : 1,
-    zIndex: isDragging ? 50 : 1,
+    opacity: isDragging ? 0 : 1,
+    cursor: 'auto',
   };
   return (
     <div 
@@ -66,6 +67,8 @@ export function Home() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editando, setEditando] = useState<Tarefa | null>(null);
   const [visualizando, setVisualizando] = useState<Tarefa | null>(null);
+  const [tarefaArrastando, setTarefaArrastando] = useState<Tarefa | null>(null);
+  const [colunaPreSelecionada, setColunaPreSelecionada] = useState<string | null>(null);
 
   // Estados do modal de colunas
   const [modalColunaOpen, setModalColunaOpen] = useState(false);
@@ -76,17 +79,28 @@ export function Home() {
     useSensor(TouchSensor, { activationConstraint: { delay: 100, tolerance: 5 } })
   );
 
+  const handleDragStart = (event: DragStartEvent) => {
+    const tarefa = tarefas.find(t => t.id === event.active.id);
+    setTarefaArrastando(tarefa ?? null);
+  };
+
   const handleDragEnd = async (event: DragEndEvent) => {
+    setTarefaArrastando(null);
     const { active, over } = event;
     if (!over) return;
 
     const taskId = active.id as string;
     const targetColumnId = over.id as string;
     const task = tarefas.find(t => t.id === taskId);
+    const colunaDestino = colunas.find(c => c.id === targetColumnId);
 
     if (task && task.coluna_id !== targetColumnId) {
       try {
-        await updateTask(taskId, { coluna_id: targetColumnId });
+        await updateTask(
+          taskId,
+          { coluna_id: targetColumnId },
+          colunaDestino?.tipo
+        );
       } catch (err) {
         console.error(err);
         alert('Erro ao mover tarefa');
@@ -96,6 +110,13 @@ export function Home() {
 
   const abrirModalCriar = () => {
     setEditando(null);
+    setColunaPreSelecionada(null);
+    setModalOpen(true);
+  };
+
+  const abrirModalCriarNaColuna = (colunaId: string) => {
+    setEditando(null);
+    setColunaPreSelecionada(colunaId);
     setModalOpen(true);
   };
 
@@ -131,10 +152,12 @@ export function Home() {
           prioridade: data.prioridade,
           lista_id: lista.id,
           usuario_id: user.id,
+          coluna_id: colunaPreSelecionada ?? colunas[0]?.id,
           data_limite: data.dataLimite || null
         });
       }
       setModalOpen(false);
+      setColunaPreSelecionada(null);
     } catch (err) {
       console.error(err);
       alert('Erro ao salvar tarefa');
@@ -216,7 +239,9 @@ export function Home() {
         {/* User Profile Section */}
         <div className="mb-10 bg-slate-900 border border-slate-800 rounded-xl p-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            <h2 className="text-2xl font-bold text-white mb-1">Olá, {user?.user_metadata?.nome || user?.email}</h2>
+            <h2 className="text-2xl font-bold text-white mb-1">
+              Olá, {user?.user_metadata?.name || user?.email?.split('@')[0] || 'Usuário'}
+            </h2>
             <p className="text-slate-400">{user?.email}</p>
           </div>
         </div>
@@ -283,13 +308,20 @@ export function Home() {
                 </button>
               </div>
             ) : (
-              <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
-                <div className="flex gap-4 overflow-x-auto pb-6 mb-6 min-h-[500px] items-start scroll-container">
+              <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+                <div className="flex gap-4 overflow-x-auto pb-6 mb-6 min-h-[500px] items-start scroll-container w-full min-w-0">
                   {colunas.map((coluna) => (
-                    <DroppableColumn key={coluna.id} id={coluna.id} className="flex-1 min-w-[280px] bg-slate-800/50 border border-slate-800 rounded-xl p-4 flex flex-col group/col shrink-0 transition-colors">
+                    <DroppableColumn key={coluna.id} id={coluna.id} className="flex-1 min-w-[280px] max-w-[400px] bg-slate-800/50 border border-slate-800 rounded-xl p-4 flex flex-col group/col transition-colors">
                       <div className="flex justify-between items-center mb-4">
                         <h4 className="font-semibold text-slate-100">{coluna.titulo}</h4>
                         <div className="flex items-center gap-1 opacity-0 group-hover/col:opacity-100 transition-all">
+                          <button
+                            onClick={() => abrirModalCriarNaColuna(coluna.id)}
+                            className="p-1.5 text-slate-500 hover:text-blue-400 hover:bg-slate-700 rounded-md"
+                            title="Adicionar tarefa nesta coluna"
+                          >
+                            <Plus size={16} />
+                          </button>
                           <button
                             onClick={() => abrirModalColunaEditar(coluna)}
                             className="p-1.5 text-slate-500 hover:text-white hover:bg-slate-700 rounded-md"
@@ -356,6 +388,23 @@ export function Home() {
                     </DroppableColumn>
                   ))}
                 </div>
+                <DragOverlay dropAnimation={null}>
+                  {tarefaArrastando ? (
+                    <div className="w-[280px] bg-slate-900 border border-blue-500/50 rounded-xl shadow-2xl shadow-black/50 flex flex-col relative overflow-hidden opacity-95 cursor-grabbing">
+                      <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${formatPriorityColor(tarefaArrastando.prioridade)}`} />
+                      <div className="p-4 pl-5">
+                        <h4 className="text-base font-semibold text-white break-words pr-4">
+                          {tarefaArrastando.titulo}
+                        </h4>
+                        {tarefaArrastando.descricao && (
+                          <p className="text-xs text-slate-500 truncate mt-1">
+                            {tarefaArrastando.descricao}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  ) : null}
+                </DragOverlay>
               </DndContext>
             )}
           </>
@@ -372,7 +421,7 @@ export function Home() {
 
       <TaskModal
         open={modalOpen}
-        onClose={() => setModalOpen(false)}
+        onClose={() => { setModalOpen(false); setColunaPreSelecionada(null); }}
         onSubmit={handleTaskSubmit}
         isEditing={!!editando}
         initialData={editando ? {

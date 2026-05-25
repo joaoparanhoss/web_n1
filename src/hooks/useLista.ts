@@ -11,8 +11,10 @@ export function useLista(listaId: string | undefined) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const userId = user?.id;
+
   const fetchList = useCallback(async () => {
-    if (!listaId || !user) {
+    if (!listaId || !userId) {
       setLoading(false);
       return;
     }
@@ -23,7 +25,7 @@ export function useLista(listaId: string | undefined) {
       const data = await listService.getListById(listaId);
       
       // Frontend security check: ensure the list exists and belongs to the user
-      if (!data || data.usuario_id !== user.id) {
+      if (!data || data.usuario_id !== userId) {
         navigate('/');
         return;
       }
@@ -35,7 +37,7 @@ export function useLista(listaId: string | undefined) {
     } finally {
       setLoading(false);
     }
-  }, [listaId, user, navigate]);
+  }, [listaId, userId, navigate]);
 
   useEffect(() => {
     fetchList();

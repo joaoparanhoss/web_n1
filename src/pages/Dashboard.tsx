@@ -3,7 +3,7 @@ import { AppLayout } from '../components/AppLayout';
 import { useLists } from '../hooks/useLists';
 import { useDashboard } from '../hooks/useDashboard';
 import { DashboardTarefa } from '../types/database';
-import { isSameMonth, parseISO, subMonths, format, differenceInDays } from 'date-fns';
+import { isSameMonth, parseISO, subMonths, addMonths, startOfMonth, format, differenceInDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import {
   Chart as ChartJS,
@@ -37,6 +37,9 @@ export function Dashboard() {
   const { listas, loading: loadingLists } = useLists();
   const [selectedListId, setSelectedListId] = useState<string>('all');
   
+  const [dataInicio, setDataInicio] = useState<Date>(() => subMonths(new Date(), 5));
+  const [dataFim, setDataFim] = useState<Date>(() => new Date());
+  
   const queryListaId = selectedListId === 'all' ? undefined : selectedListId;
   const { tarefas, loading: loadingDashboard, error } = useDashboard(queryListaId);
 
@@ -47,14 +50,13 @@ export function Dashboard() {
     let canceladas = 0;
     let concluidas = 0;
     
-    let alta = 0;
-    let media = 0;
-    let baixa = 0;
-
     const concluidas6Meses: Record<string, number> = {};
-    for (let i = 5; i >= 0; i--) {
-      const d = subMonths(now, i);
-      concluidas6Meses[format(d, 'MMM/yy', { locale: ptBR })] = 0;
+    const startDate = startOfMonth(dataInicio);
+    const endDate = startOfMonth(dataFim);
+    let cursor = startDate;
+    while (cursor <= endDate) {
+      concluidas6Meses[format(cursor, 'MMM/yy', { locale: ptBR })] = 0;
+      cursor = addMonths(cursor, 1);
     }
 
     const emAndamentoPorLista: Record<string, number> = {};
@@ -63,16 +65,18 @@ export function Dashboard() {
 
     tarefas.forEach(t => {
       const tipo = t.colunas?.tipo;
-      const dataAtualizacao = t.atualizado_em || t.criado_em;
+      // Usa concluido_em como fonte de verdade; fallback para atualizado_em
+      // para tarefas antigas que não têm o campo ainda
+      const dataConclusao = t.concluido_em || t.atualizado_em || t.criado_em;
 
       if (tipo === 'concluido') {
         concluidas++;
-        if (dataAtualizacao && isSameMonth(parseISO(dataAtualizacao), now)) {
+        if (dataConclusao && isSameMonth(parseISO(dataConclusao), now)) {
           concluidasMes++;
         }
         
-        if (dataAtualizacao) {
-          const date = parseISO(dataAtualizacao);
+        if (dataConclusao) {
+          const date = parseISO(dataConclusao);
           const monthKey = format(date, 'MMM/yy', { locale: ptBR });
           if (concluidas6Meses[monthKey] !== undefined) {
             concluidas6Meses[monthKey]++;
@@ -86,12 +90,11 @@ export function Dashboard() {
         const listName = t.listas?.titulo || 'Sem Lista';
         emAndamentoPorLista[listName] = (emAndamentoPorLista[listName] || 0) + 1;
 
-        if (t.prioridade === 'ALTA') alta++;
-        else if (t.prioridade === 'MEDIA') media++;
-        else if (t.prioridade === 'BAIXA') baixa++;
-
         if (t.data_limite) {
-          proximasTarefas.push(t);
+          const diff = differenceInDays(parseISO(t.data_limite), now);
+          if (diff <= 7) {
+            proximasTarefas.push(t);
+          }
         }
       }
     });
@@ -104,14 +107,20 @@ export function Dashboard() {
       emAndamento,
       canceladas,
       concluidas,
-      alta,
-      media,
-      baixa,
       concluidas6Meses,
       emAndamentoPorLista,
       proximasTarefas: proximasTarefas.slice(0, 5)
     };
-  }, [tarefas]);
+  }, [tarefas, dataInicio, dataFim]);
+
+  const MESES = [
+    'Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun',
+    'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'
+  ];
+
+  const anoAtual = new Date().getFullYear();
+  const ANOS = Array.from({ length: 5 }, (_, i) => anoAtual - 4 + i);
+  // Gera [anoAtual-4, ..., anoAtual] ex: [2022, 2023, 2024, 2025, 2026]
 
   const donutData = {
     labels: ['Concluídas', 'Em andamento', 'Canceladas'],
@@ -220,46 +229,93 @@ export function Dashboard() {
                 </div>
               </div>
               <div className="bg-slate-900 border border-slate-800 rounded-xl p-5">
-                <h3 className="text-lg font-semibold text-white mb-4">Concluídas (6 Meses)</h3>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+                  <h3 className="text-lg font-semibold text-white">Tarefas Concluídas</h3>
+                  <div className="flex items-center gap-3 flex-wrap">
+                    {/* De */}
+                    <div className="flex items-center gap-1.5">
+                      <label className="text-xs text-slate-400 whitespace-nowrap">De</label>
+                      <select
+                        value={dataInicio.getMonth()}
+                        onChange={(e) => {
+                          const d = new Date(dataInicio);
+                          d.setMonth(Number(e.target.value));
+                          if (d <= dataFim) setDataInicio(d);
+                        }}
+                        className="bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500 transition-colors appearance-none cursor-pointer"
+                      >
+                        {MESES.map((m, i) => (
+                          <option key={i} value={i}>{m}</option>
+                        ))}
+                      </select>
+                      <select
+                        value={dataInicio.getFullYear()}
+                        onChange={(e) => {
+                          const d = new Date(dataInicio);
+                          d.setFullYear(Number(e.target.value));
+                          if (d <= dataFim) setDataInicio(d);
+                        }}
+                        className="bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500 transition-colors appearance-none cursor-pointer"
+                      >
+                        {ANOS.map((a) => (
+                          <option key={a} value={a}>{a}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <span className="text-slate-600 text-sm">→</span>
+
+                    {/* Até */}
+                    <div className="flex items-center gap-1.5">
+                      <label className="text-xs text-slate-400 whitespace-nowrap">Até</label>
+                      <select
+                        value={dataFim.getMonth()}
+                        onChange={(e) => {
+                          const d = new Date(dataFim);
+                          d.setMonth(Number(e.target.value));
+                          if (d >= dataInicio) setDataFim(d);
+                        }}
+                        className="bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500 transition-colors appearance-none cursor-pointer"
+                      >
+                        {MESES.map((m, i) => (
+                          <option key={i} value={i}>{m}</option>
+                        ))}
+                      </select>
+                      <select
+                        value={dataFim.getFullYear()}
+                        onChange={(e) => {
+                          const d = new Date(dataFim);
+                          d.setFullYear(Number(e.target.value));
+                          if (d >= dataInicio) setDataFim(d);
+                        }}
+                        className="bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500 transition-colors appearance-none cursor-pointer"
+                      >
+                        {ANOS.map((a) => (
+                          <option key={a} value={a}>{a}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </div>
                 <div className="h-64">
                   <Bar data={barMesesData} options={chartOptions} />
                 </div>
               </div>
             </div>
 
-            {/* Gráfico 3 e Outras infos */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-              <div className="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-xl p-5">
+            {/* Gráfico 3 */}
+            <div className="grid grid-cols-1 gap-6 mb-8">
+              <div className="bg-slate-900 border border-slate-800 rounded-xl p-5">
                 <h3 className="text-lg font-semibold text-white mb-4">Tarefas Abertas por Lista</h3>
                 <div className="h-64">
                   <Bar data={barListasData} options={horizontalChartOptions} />
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-6">
-                <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 flex-1">
-                  <h3 className="text-lg font-semibold text-white mb-4">Prioridades (Abertas)</h3>
-                  <div className="space-y-3">
-                    <div className="flex justify-between items-center bg-red-900/50 border border-red-500 rounded-lg p-3">
-                      <span className="font-medium text-red-400">ALTA</span>
-                      <span className="text-xl font-bold text-red-400">{stats.alta}</span>
-                    </div>
-                    <div className="flex justify-between items-center bg-yellow-900/50 border border-yellow-500 rounded-lg p-3">
-                      <span className="font-medium text-yellow-400">MÉDIA</span>
-                      <span className="text-xl font-bold text-yellow-400">{stats.media}</span>
-                    </div>
-                    <div className="flex justify-between items-center bg-green-900/50 border border-green-500 rounded-lg p-3">
-                      <span className="font-medium text-green-400">BAIXA</span>
-                      <span className="text-xl font-bold text-green-400">{stats.baixa}</span>
-                    </div>
-                  </div>
                 </div>
               </div>
             </div>
 
             {/* Próximas Tarefas */}
             <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 mb-8">
-              <h3 className="text-lg font-semibold text-white mb-4">Tarefas com Prazo Próximo</h3>
+              <h3 className="text-lg font-semibold text-white mb-4">Vencendo nos próximos 7 dias</h3>
               {stats.proximasTarefas.length === 0 ? (
                 <p className="text-slate-400 py-4 text-center">Nenhuma tarefa aberta com prazo definido.</p>
               ) : (

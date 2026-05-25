@@ -13,7 +13,6 @@ interface SidebarProps {
 }
 
 export function Sidebar({ hideListSelector = false }: SidebarProps) {
-  const [hora, setHora] = useState(new Date());
   const { user, signOut } = useAuthContext();
   const { id: currentListaId } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -37,10 +36,7 @@ export function Sidebar({ hideListSelector = false }: SidebarProps) {
   const [descricao, setDescricao] = useState('');
   const [loadingSubmit, setLoadingSubmit] = useState(false);
 
-  useEffect(() => {
-    const timer = setInterval(() => setHora(new Date()), 1000);
-    return () => clearInterval(timer);
-  }, []);
+
 
   useEffect(() => {
     localStorage.setItem('sidebar-collapsed', String(collapsed));
@@ -62,7 +58,7 @@ export function Sidebar({ hideListSelector = false }: SidebarProps) {
   }, [currentListaId]);
 
   const saudacao = () => {
-    const h = hora.getHours();
+    const h = new Date().getHours();
     if (h < 12) return 'Bom dia';
     if (h < 18) return 'Boa tarde';
     return 'Boa noite';
@@ -151,17 +147,11 @@ export function Sidebar({ hideListSelector = false }: SidebarProps) {
         </button>
       </div>
 
-      {/* Saudação + relógio */}
+      {/* Saudação */}
       {!collapsed && (
         <div className="px-4 py-3 border-b border-slate-800 shrink-0">
           <p className="text-xs text-slate-400 truncate">
             {saudacao()}, <span className="text-slate-200 font-medium">{userName}</span>
-          </p>
-          <p className="text-lg font-semibold text-white mt-0.5">
-            {hora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-          </p>
-          <p className="text-xs text-slate-400">
-            {hora.toLocaleDateString('pt-BR', { dateStyle: 'long' })}
           </p>
         </div>
       )}

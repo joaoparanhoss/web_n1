@@ -40,6 +40,7 @@ export interface Tarefa {
   data_limite?: string | null;
   criado_em?: string;
   atualizado_em?: string;
+  concluido_em?: string | null;
 }
 
 export interface DashboardTarefa {
@@ -52,6 +53,7 @@ export interface DashboardTarefa {
   data_limite: string | null;
   criado_em: string;
   atualizado_em: string;
+  concluido_em?: string | null;
   colunas: {
     id: string;
     titulo: string;

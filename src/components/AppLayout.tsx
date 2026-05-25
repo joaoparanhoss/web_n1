@@ -1,5 +1,6 @@
 import { ReactNode, useEffect, useState } from 'react';
 import { Sidebar } from './Sidebar';
+import { Topbar } from './Topbar';
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -29,11 +30,14 @@ export function AppLayout({ children, hideListSelector = false }: AppLayoutProps
     <div className="flex min-h-screen bg-slate-950">
       <Sidebar hideListSelector={hideListSelector} />
       <main
-        className={`flex-1 transition-all duration-200 ${
+        className={`flex-1 transition-all duration-200 flex flex-col min-h-screen min-w-0 ${
           collapsed ? 'lg:pl-16' : 'lg:pl-56'
         }`}
       >
-        {children}
+        <Topbar />
+        <div className="flex-1">
+          {children}
+        </div>
       </main>
     </div>
   );

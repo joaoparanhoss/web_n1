@@ -40,10 +40,24 @@ export function useTasks(listaId: string | undefined) {
     }
   };
 
-  const updateTask = async (id: string, updates: Partial<Tarefa>) => {
+  const updateTask = async (
+    id: string,
+    updates: Partial<Tarefa>,
+    tipoColunaDestino?: 'padrao' | 'concluido' | 'cancelado'
+  ) => {
     try {
       setError(null);
-      await taskService.updateTask(id, updates);
+      const finalUpdates: Partial<Tarefa> = { ...updates };
+
+      // Se estiver movendo para coluna concluido, registra o timestamp
+      // Se estiver saindo de concluido para outra, limpa o campo
+      if (tipoColunaDestino === 'concluido') {
+        finalUpdates.concluido_em = new Date().toISOString();
+      } else if (tipoColunaDestino !== undefined) {
+        finalUpdates.concluido_em = null;
+      }
+
+      await taskService.updateTask(id, finalUpdates);
       await fetchTasks();
     } catch (err: any) {
       setError(err.message || 'Erro ao atualizar tarefa');

@@ -9,8 +9,10 @@ export function useLists() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const userId = user?.id;
+
   const fetchLists = useCallback(async () => {
-    if (!user) {
+    if (!userId) {
       setListas([]);
       setLoading(false);
       return;
@@ -19,7 +21,7 @@ export function useLists() {
     try {
       setLoading(true);
       setError(null);
-      const data = await listService.getLists(user.id);
+      const data = await listService.getLists(userId);
       setListas(data);
     } catch (err: any) {
       console.error('Erro ao carregar listas:', err);
@@ -27,17 +29,17 @@ export function useLists() {
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [userId]);
 
   useEffect(() => {
     fetchLists();
   }, [fetchLists]);
 
   const createList = async (titulo: string, descricao: string | null = null) => {
-    if (!user) return null;
+    if (!userId) return null;
     try {
       setError(null);
-      const newList = await listService.createList(titulo, user.id, descricao);
+      const newList = await listService.createList(titulo, userId, descricao);
       await fetchLists();
       return newList;
     } catch (err: any) {
