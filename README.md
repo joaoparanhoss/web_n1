@@ -79,13 +79,13 @@ Criar uma aplicação web que permita ao usuário:
 | ID | Descrição |
 |----|-----------|
 | RF01 | **Autenticação de Usuário** — Registro e login via e-mail e senha. |
-| RF02 | **Gerenciamento de Listas** — Criar, editar e excluir listas. Ao criar uma lista, três colunas padrão são geradas automaticamente. Navegação entre listas via dropdown no header. |
-| RF03 | **Gerenciamento de Colunas** — Criar, renomear, reordenar e excluir colunas dentro de uma lista. Cada coluna possui um tipo semântico (`padrao`, `concluido` ou `cancelado`) para identificar o significado das tarefas nela contidas. |
-| RF04 | **Gerenciamento de Tarefas** — Criar tarefas com título, descrição, prioridade e prazo; editar, mover entre colunas e excluir tarefas. |
-| RF05 | **Mover Tarefas** — Mover tarefas entre colunas via seletor. *(Drag and drop planejado)* |
+| RF02 | **Gerenciamento de Listas** — Criar, editar e excluir listas. Ao criar uma lista, três colunas padrão são geradas automaticamente. Navegação entre listas via sidebar lateral. |
+| RF03 | **Gerenciamento de Colunas** — Criar, renomear, reordenar e excluir colunas dentro de uma lista. Cada coluna possui um tipo semântico (`padrao`, `concluido` ou `cancelado`). Adição rápida de tarefa diretamente na coluna via ícone `+` no hover. |
+| RF04 | **Gerenciamento de Tarefas** — Criar tarefas com título, descrição, prioridade e prazo; editar, mover entre colunas e excluir tarefas. O prazo é exibido no modal de visualização com alerta visual para vencimentos próximos. |
+| RF05 | **Mover Tarefas** — Mover tarefas entre colunas via drag and drop com DragOverlay. Ao mover para uma coluna do tipo `concluido`, o campo `concluido_em` é registrado automaticamente; ao mover para outro tipo, o campo é zerado. |
 | RF06 | **Prioridade Visual** — Exibir indicador visual de prioridade (baixa, média, alta) nas tarefas através de barra colorida lateral e badge. |
 | RF07 | **Etiquetas** — Adicionar etiquetas às tarefas para categorização. *(planejado)* |
-| RF08 | **Dashboard de Métricas** — Tela com gráficos e indicadores sobre o estado das tarefas do usuário: distribuição por status de coluna, tarefas concluídas por mês, tarefas abertas por lista e distribuição por prioridade. Suporta filtro por lista. |
+| RF08 | **Dashboard de Métricas** — Tela com gráficos e indicadores sobre o estado das tarefas: distribuição por status de coluna, tarefas concluídas por período com seletor de intervalo (mês/ano), tarefas abertas por lista e vencimentos nos próximos 7 dias. Suporta filtro por lista. |
 | RF09 | **Assistente com IA** *(planejado — sujeito a alterações)* — Integração com um modelo de linguagem (LLM) para auxiliar o usuário na gestão das tarefas. Possíveis funcionalidades: sugerir descrições e prioridades ao criar uma tarefa; resumir o estado atual de uma lista; responder perguntas sobre as tarefas em linguagem natural. |
 
 ---
@@ -94,13 +94,13 @@ Criar uma aplicação web que permita ao usuário:
 
 | ID | Descrição |
 |----|-----------|
-| RNF01 | **Responsividade** — Interface adaptada para desktop e dispositivos móveis. |
+| RNF01 | **Responsividade** — Interface adaptada para desktop e dispositivos móveis. Sidebar colapsável no desktop e drawer com overlay no mobile via botão hamburguer. |
 | RNF02 | **Persistência de Dados** — Dados armazenados em banco de dados remoto via Supabase. |
-| RNF03 | **Autenticação Segura** — Uso do sistema de autenticação nativo do Supabase com proteção de rotas via `PrivateRoute`. Validação dupla: RLS no banco e verificação de ownership no frontend. |
-| RNF04 | **Experiência do Usuário** — Atualizações na tela em tempo real via WebSocket, sem necessidade de recarregar a página. |
-| RNF05 | **Integridade dos Dados** — Triggers e constraints no banco garantem regras de negócio, como a criação automática de colunas padrão ao criar uma lista e a restrição de no máximo uma coluna do tipo `concluido` e uma do tipo `cancelado` por lista. |
+| RNF03 | **Autenticação Segura** — Uso do sistema de autenticação nativo do Supabase com proteção de rotas via `PrivateRoute`. Validação dupla: RLS no banco e verificação de ownership no frontend. Camada de serviço `authService` centraliza todas as chamadas de autenticação. |
+| RNF04 | **Experiência do Usuário** — Navegação via sidebar fixa com estado de colapso persistido em `localStorage`. Drag and drop com `DragOverlay` para feedback visual sem conflitos de layout. Sidebar colapsável com ícones no modo recolhido. |
+| RNF05 | **Integridade dos Dados** — Triggers e constraints no banco garantem regras de negócio, como a criação automática de colunas padrão ao criar uma lista e a restrição de no máximo uma coluna do tipo `concluido` e uma do tipo `cancelado` por lista. O campo `concluido_em` (timestamptz) registra com precisão o momento de conclusão de cada tarefa. |
 | RNF06 | **CI/CD** — Pipeline de integração contínua configurado via GitHub Actions, garantindo que o build do projeto é validado a cada push na branch `main`. |
-
+| RNF07 | **Estabilidade de Re-renders** — Hooks utilizam `user?.id` (primitiva) como dependência do `useCallback` em vez do objeto `user`, evitando re-fetches desnecessários causados pela renovação automática de token JWT do Supabase (`TOKEN_REFRESHED`). |
 ---
 
 ## 5. Arquitetura
